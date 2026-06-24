@@ -35,6 +35,8 @@ export type AnalyticsEvent =
   | "share_click"
   | "referral_created";
 
+import { getCycle } from "./cycle";
+
 const hasWindow = () => typeof window !== "undefined";
 
 function randomCode(): string {
@@ -101,8 +103,13 @@ export function getMyRef(): string {
 }
 
 /**
- * Mark this device as a spreader exactly once (the moment its share link first
- * exists). This is the numerator of "invites per user" in the K-factor.
+ * @deprecated NOT a metric. `referral_created` fires on success-page view (once
+ * per device), so it represents neither propagation intent nor an outcome — it
+ * must never feed analytics. The canonical model in metrics.ts derives invites
+ * from `share_click` and referred landings instead, and ignores this event.
+ * Kept only so existing logs stay parseable and share behavior is unchanged.
+ *
+ * Still mints/returns this device's stable referral code as a side effect.
  */
 export function createReferral(): string {
   const code = getMyRef();
@@ -120,6 +127,7 @@ export function track(event: AnalyticsEvent, props: Record<string, unknown> = {}
   const payload = {
     event,
     ts: new Date().toISOString(),
+    week: getCycle(Date.now()).week, // weekly-cycle session tag (additive, optional)
     ref: getRef(), // who referred this user (inbound)
     myRef: localStorage.getItem(MYREF_KEY) ?? null, // this user's own code
     ...props,

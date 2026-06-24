@@ -15,7 +15,10 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/)",
       "Bash(echo \"127.0.0.1:10000/ -> $\\(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/\\)\")",
       "Bash(npx tsc *)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"TSC EXIT: $?\")",
+      "Bash(echo \"BUILD EXIT: $?\")"
     ]
   }
 }

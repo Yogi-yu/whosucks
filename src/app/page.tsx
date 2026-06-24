@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import { captureRef, track } from "@/lib/attribution";
+import SocialProof from "@/components/SocialProof";
+import Countdown from "@/components/Countdown";
 
 export default function Landing() {
   const router = useRouter();
-  const { messiPct, ronaldoPct } = useApp();
+  const { messiPct, ronaldoPct, cycle } = useApp();
+  const [referred, setReferred] = useState(false);
 
   // first-touch: store inbound ?ref, then log the visit (with that ref attached)
   useEffect(() => {
-    captureRef();
+    const ref = captureRef();
+    setReferred(Boolean(ref)); // arrived via a friend's challenge → live-conflict framing
     track("landing_view");
   }, []);
 
@@ -22,14 +26,26 @@ export default function Landing() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-9 px-6 text-center">
-      {/* live tag */}
+      {/* live tag — for referred arrivals this becomes a "you were dragged in" hook */}
       <motion.div
         animate={{ opacity: [1, 0.4, 1] }}
         transition={{ duration: 1.5, repeat: Infinity }}
         className="flex items-center gap-2 rounded-full border border-lose/50 bg-lose/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-lose"
       >
-        <span className="h-2 w-2 rounded-full bg-lose" /> Live battle
+        <span className="h-2 w-2 rounded-full bg-lose" />
+        {referred ? "⚔️ You've been challenged" : "Live battle"}
       </motion.div>
+
+      {/* season context + live countdown — clustered so urgency reads as one unit */}
+      <div className="flex flex-col items-center gap-2">
+        {cycle && (
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-gold">
+            Week {cycle.week}: Messi vs Ronaldo
+          </p>
+        )}
+        {/* expiration-driven urgency, above the fold */}
+        <Countdown />
+      </div>
 
       {/* the only question */}
       <h1 className="text-6xl font-black leading-none tracking-tight sm:text-7xl">
@@ -65,6 +81,9 @@ export default function Landing() {
             transition={{ duration: 2, ease: "easeInOut" }}
           />
         </div>
+
+        {/* live conflict pulse — every shared link shows the war MOVING, not a static page */}
+        <SocialProof className="mt-4" />
       </div>
 
       {/* two buttons — the whole product */}

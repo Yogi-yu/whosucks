@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Confetti from "@/components/Confetti";
+import SocialProof from "@/components/SocialProof";
+import Countdown from "@/components/Countdown";
 import { useApp } from "@/lib/AppContext";
 import { createReferral, getMyRef, getVariant, track, ShareVariant } from "@/lib/attribution";
 import { FACTION_LABEL } from "@/lib/mockData";
@@ -102,27 +104,38 @@ export default function SuccessPage() {
 
   async function challenge() {
     // --- everything here is SYNCHRONOUS up to navigator.share() ---
-    // No awaits before the share call → preserves the iOS user-gesture context.
+    // No awaited promise resolves before the share call → preserves the iOS gesture.
     const url = makeShareUrl(getMyRef()); // single, always-valid URL
     const text = shareText;
-    console.log("[SHARE URL]", url); // TEMP debug — verify URL correctness
+    const payload = `${text} ${url}`;
     track("share_click", { variant }); // sync (localStorage + console) — gesture safe
 
-    // 1. Native share — invoked directly inside the gesture (mobile / iOS Safari)
+    // 1. COPY FIRST — fire inside the gesture, before anything can fail.
+    //    We don't await it yet: that would burn the transient activation share() needs.
+    //    Whatever happens next, the link is already on its way to the clipboard.
+    const copyPromise = copyLink(payload);
+
+    // 2. Native share — invoked directly inside the same gesture (mobile / iOS Safari)
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: "WHO IS GOAT?", text, url });
-        flashToast("Shared successfully ✅");
-        return; // outcome: native share
+        flashToast("Sent ✅ — link's copied too, drop it in your group");
+        return; // outcome: native share (+ clipboard already done)
       } catch (err) {
-        // User dismissed the sheet → intentional, a valid outcome. Stay quiet.
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        // Any real failure → fall through to clipboard. No dead end.
+        // User dismissed the sheet → NOT a dead end: the clipboard copy already ran.
+        const copied = await copyPromise;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          flashToast(copied ? "Link copied — send it before the score flips 😈" : `Share this: ${url}`);
+          return;
+        }
+        // Any other failure → clipboard is still our guaranteed propagation path.
+        flashToast(copied ? "Link copied — send it to someone who's WRONG 😈" : `Share this: ${url}`);
+        return;
       }
     }
 
-    // 2. Clipboard fallback: writeText → execCommand → raw link (copyLink chain)
-    const copied = await copyLink(`${text} ${url}`);
+    // 3. No native share (desktop) — clipboard IS the share. Confirm the copy.
+    const copied = await copyPromise;
     flashToast(
       copied
         ? "Link copied — send it to someone who's WRONG 😈" // outcome: copied
@@ -194,6 +207,9 @@ export default function SuccessPage() {
         <p className="mt-1 text-xs text-muted">{formatNumber(total)} soldiers in battle</p>
       </div>
 
+      {/* read-only social proof + FOMO — "people are joining, act before it flips" */}
+      <SocialProof className="relative z-10" />
+
       <motion.p
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 1.4, repeat: Infinity }}
@@ -201,6 +217,9 @@ export default function SuccessPage() {
       >
         ⚠️ {FACTION_LABEL[side]} {myPct.toFixed(1)}% — {urgencyLine}
       </motion.p>
+
+      {/* battle expiry right above the CTA — "share before it resets" urgency */}
+      <Countdown className="relative z-10" />
 
       <motion.button
         onClick={challenge}

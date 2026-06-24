@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { computeMetrics, fmtRatioPct, fmtK } from "@/lib/metrics";
 
 const LOG_KEY = "goat-battle:events";
 const VARIANT_KEY = "goat-battle:variant";
@@ -69,8 +70,6 @@ function extractEvents(text: string): RawEvent[] {
   return out;
 }
 
-const VOTE_EVENTS = ["vote_messi", "vote_ronaldo"];
-
 const VARIANT_INFO: Record<Variant, { name: string }> = {
   A: { name: "CONFRONTATION" },
   B: { name: "TRIBAL DEFENSE" },
@@ -99,33 +98,6 @@ function resolveDeviceVariant(events: RawEvent[]): Variant | null {
   return null;
 }
 
-type VariantMetrics = {
-  votes: number;
-  shares: number;
-  shareRate: number; // 0..1
-  inviteConversion: number; // 0..1
-  k: number;
-};
-
-function variantMetrics(
-  events: RawEvent[],
-  v: Variant,
-  deviceVariant: Variant | null,
-): VariantMetrics {
-  // effective variant: own tag if present, else the device's sticky variant
-  const effective = (e: RawEvent): Variant | null => eventVariant(e) ?? deviceVariant;
-  const evs = events.filter((e) => effective(e) === v);
-
-  const votes = evs.filter((e) => VOTE_EVENTS.includes(e.event)).length;
-  const shares = evs.filter((e) => e.event === "share_click").length;
-  const referredLandings = evs.filter((e) => e.event === "landing_view" && e.ref).length;
-  const referredVotes = evs.filter((e) => VOTE_EVENTS.includes(e.event) && e.ref).length;
-
-  const shareRate = votes > 0 ? shares / votes : 0;
-  const inviteConversion = referredLandings > 0 ? referredVotes / referredLandings : 0;
-  return { votes, shares, shareRate, inviteConversion, k: shareRate * inviteConversion };
-}
-
 function readEvents(): RawEvent[] {
   if (typeof window === "undefined") return [];
   try {
@@ -146,6 +118,14 @@ function kLabel(k: number): { text: string; color: string } {
   if (k >= 0.8) return { text: "STRONG", color: "text-gold" };
   if (k >= 0.5) return { text: "MODERATE", color: "text-ronaldo" };
   return { text: "WEAK", color: "text-lose" };
+}
+
+const INSUFFICIENT_LABEL = { text: "INSUFFICIENT DATA", color: "text-muted" };
+
+/** Declare an A/B winner only when both ratios are measured and differ. */
+function pickWinner(a: number | null, b: number | null): Variant | null {
+  if (a === null || b === null || a === b) return null;
+  return a > b ? "A" : "B";
 }
 
 export default function DashboardPage() {
@@ -194,54 +174,35 @@ export default function DashboardPage() {
     );
   }
 
-  const count = (type: string) => events.filter((e) => e.event === type).length;
+  // === SINGLE SOURCE OF TRUTH ==============================================
+  // Every metric on this page comes from computeMetrics() and nothing else.
+  const m = computeMetrics(events);
+  const label = m.k === null ? INSUFFICIENT_LABEL : kLabel(m.k);
 
-  // --- funnel ---------------------------------------------------------------
-  const landingViews = count("landing_view");
-  const voteStarts = count("vote_started");
-  const votesCompleted = events.filter((e) => VOTE_EVENTS.includes(e.event)).length;
-  const shareClicks = count("share_click");
-  const referralCreated = count("referral_created");
+  // canonical lifecycle funnel — four traceable raw/derived counts only
+  // (vote_started and referral_created are deliberately excluded from metrics)
+  const funnel = [
+    { name: "Landing Views", value: m.landingViews },
+    { name: "Votes", value: m.votes },
+    { name: "Share Clicks", value: m.shares },
+    { name: "Referred Landings", value: m.referredLandings },
+  ];
+  const funnelMax = Math.max(...funnel.map((f) => f.value), 1);
 
-  const landingToVote = pct(votesCompleted, landingViews);
-  const voteToShare = pct(shareClicks, votesCompleted);
-  const shareToReferral = pct(referralCreated, shareClicks);
+  // acquisition baseline (landing → vote) — context only, NOT part of K
+  const landingToVote = m.landingViews > 0 ? m.votes / m.landingViews : null;
 
-  // --- K-factor -------------------------------------------------------------
-  // users ≈ landing views (device loads) — best no-auth proxy available
-  const users = landingViews;
-  const sharesPerUser = users > 0 ? shareClicks / users : 0;
-
-  // invite conversion = referred landings that complete a vote
-  const referredLandings = events.filter((e) => e.event === "landing_view" && e.ref).length;
-  const referredVotes = events.filter((e) => VOTE_EVENTS.includes(e.event) && e.ref).length;
-  // fall back to overall landing→vote when no referred traffic has arrived yet
-  const inviteConversion =
-    referredLandings > 0 ? referredVotes / referredLandings : landingToVote / 100;
-
-  const k = sharesPerUser * inviteConversion;
-  const label = kLabel(k);
-
-  // --- A/B experiment -------------------------------------------------------
+  // --- A/B experiment: IDENTICAL formula, different event slice -------------
   const deviceVariant = resolveDeviceVariant(events);
-  const metricsA = variantMetrics(events, "A", deviceVariant);
-  const metricsB = variantMetrics(events, "B", deviceVariant);
-  const shareWinner: Variant | null =
-    metricsA.shareRate === metricsB.shareRate ? null : metricsA.shareRate > metricsB.shareRate ? "A" : "B";
-  const kWinner: Variant | null =
-    metricsA.k === metricsB.k ? null : metricsA.k > metricsB.k ? "A" : "B";
+  const sliceFor = (v: Variant) =>
+    events.filter((e) => (eventVariant(e) ?? deviceVariant) === v);
+  const metricsA = computeMetrics(sliceFor("A"));
+  const metricsB = computeMetrics(sliceFor("B"));
+  const shareWinner = pickWinner(metricsA.shareRate, metricsB.shareRate);
+  const kWinner = pickWinner(metricsA.k, metricsB.k);
 
   // --- event log (newest first, last 20) ------------------------------------
   const recent = [...events].slice(-20).reverse();
-
-  const funnel = [
-    { name: "Landing Views", value: landingViews },
-    { name: "Vote Starts", value: voteStarts },
-    { name: "Votes Completed", value: votesCompleted },
-    { name: "Share Clicks", value: shareClicks },
-    { name: "Referral Created", value: referralCreated },
-  ];
-  const funnelMax = Math.max(...funnel.map((f) => f.value), 1);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-md px-5 py-8">
@@ -303,19 +264,25 @@ export default function DashboardPage() {
               <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted">K-Factor</h2>
               <span className={`text-xs font-black uppercase ${label.color}`}>{label.text}</span>
             </div>
-            <p className={`mt-1 text-5xl font-black ${label.color}`}>{k.toFixed(2)}</p>
+            <p className={`mt-1 text-5xl font-black ${label.color}`}>{fmtK(m.k)}</p>
             <p className="mt-2 text-xs text-muted">
-              shares/user <span className="font-bold text-white">{sharesPerUser.toFixed(2)}</span> ×
+              share rate <span className="font-bold text-white">{fmtRatioPct(m.shareRate)}</span> ×
               invite conv.{" "}
-              <span className="font-bold text-white">{(inviteConversion * 100).toFixed(0)}%</span>
+              <span className="font-bold text-white">{fmtRatioPct(m.inviteConversion)}</span>
             </p>
             <div className="mt-3 grid grid-cols-4 gap-1 text-[10px] font-bold uppercase">
-              <span className={k < 0.5 ? "text-lose" : "text-muted/50"}>&lt;0.5 weak</span>
-              <span className={k >= 0.5 && k < 0.8 ? "text-ronaldo" : "text-muted/50"}>
+              <span className={m.k !== null && m.k < 0.5 ? "text-lose" : "text-muted/50"}>
+                &lt;0.5 weak
+              </span>
+              <span className={m.k !== null && m.k >= 0.5 && m.k < 0.8 ? "text-ronaldo" : "text-muted/50"}>
                 .5 mod
               </span>
-              <span className={k >= 0.8 && k <= 1 ? "text-gold" : "text-muted/50"}>.8 strong</span>
-              <span className={k > 1 ? "text-win" : "text-muted/50"}>&gt;1 viral</span>
+              <span className={m.k !== null && m.k >= 0.8 && m.k <= 1 ? "text-gold" : "text-muted/50"}>
+                .8 strong
+              </span>
+              <span className={m.k !== null && m.k > 1 ? "text-win" : "text-muted/50"}>
+                &gt;1 viral
+              </span>
             </div>
           </section>
 
@@ -341,16 +308,16 @@ export default function DashboardPage() {
 
             <div className="mt-4 grid grid-cols-3 gap-2 border-t border-hairline pt-4 text-center">
               <div>
-                <p className="text-lg font-black text-white">{landingToVote.toFixed(0)}%</p>
+                <p className="text-lg font-black text-white">{fmtRatioPct(landingToVote)}</p>
                 <p className="text-[10px] uppercase text-muted">Landing→Vote</p>
               </div>
               <div>
-                <p className="text-lg font-black text-white">{voteToShare.toFixed(0)}%</p>
+                <p className="text-lg font-black text-white">{fmtRatioPct(m.shareRate)}</p>
                 <p className="text-[10px] uppercase text-muted">Vote→Share</p>
               </div>
               <div>
-                <p className="text-lg font-black text-white">{shareToReferral.toFixed(0)}%</p>
-                <p className="text-[10px] uppercase text-muted">Share→Referral</p>
+                <p className="text-lg font-black text-white">{fmtRatioPct(m.inviteConversion)}</p>
+                <p className="text-[10px] uppercase text-muted">Share→Referred</p>
               </div>
             </div>
           </section>
@@ -376,17 +343,14 @@ export default function DashboardPage() {
                   </p>
                   <Metric
                     label="Share Rate"
-                    value={`${(m.shareRate * 100).toFixed(0)}%`}
+                    value={fmtRatioPct(m.shareRate)}
                     sub={`${m.shares}/${m.votes}`}
                     badge={shareWinner === v ? { text: "WIN", cls: "bg-win/20 text-win" } : null}
                   />
-                  <Metric
-                    label="Invite Conv."
-                    value={`${(m.inviteConversion * 100).toFixed(0)}%`}
-                  />
+                  <Metric label="Invite Conv." value={fmtRatioPct(m.inviteConversion)} />
                   <Metric
                     label="Est. K"
-                    value={m.k.toFixed(2)}
+                    value={fmtK(m.k)}
                     badge={kWinner === v ? { text: "WIN", cls: "bg-gold/20 text-gold" } : null}
                   />
                 </div>
