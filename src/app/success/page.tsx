@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Confetti from "@/components/Confetti";
 import { useApp } from "@/lib/AppContext";
+import { buildShareUrl, createReferral, getVariant, track, ShareVariant } from "@/lib/attribution";
 import { FACTION_LABEL } from "@/lib/mockData";
 import { formatNumber } from "@/lib/format";
 
@@ -12,11 +13,25 @@ export default function SuccessPage() {
   const router = useRouter();
   const { side, rank, messi, ronaldo, total, messiPct, ronaldoPct } = useApp();
   const [toast, setToast] = useState<string | null>(null);
+  const [variant, setVariant] = useState<ShareVariant>("A");
+
+  // sticky A/B assignment (client-only → no hydration mismatch)
+  useEffect(() => {
+    setVariant(getVariant());
+  }, []);
 
   // no vote yet → back to the start
   useEffect(() => {
     if (!side) router.replace("/");
   }, [side, router]);
+
+  // reaching success = this user can now spread → log the view + mint referral (once)
+  useEffect(() => {
+    if (side) {
+      track("success_view");
+      createReferral();
+    }
+  }, [side]);
 
   if (!side) return null;
 
@@ -24,20 +39,82 @@ export default function SuccessPage() {
   const myPct = isMessi ? messiPct : ronaldoPct;
   const winning = (isMessi ? messi : ronaldo) >= (isMessi ? ronaldo : messi);
 
-  async function challenge() {
-    const url = typeof window !== "undefined" ? window.location.origin : "https://goatbattle.app";
-    const text = `I just joined the ${FACTION_LABEL[side as "messi" | "ronaldo"]} ARMY 🐐 WHO IS THE GOAT — Messi or Ronaldo? Pick a side 👉`;
+  // standardized loss-aversion: always one urgency sentence (score shown separately)
+  const urgencyLine = winning
+    ? "They are closing the gap — don't lose momentum."
+    : "Your side is falling behind — send reinforcements.";
+
+  // A/B share experiment — copy is driven by the sticky variant, NOT win/loss,
+  // so each user sees ONE consistent treatment all session.
+  const VARIANT_SHARE: Record<ShareVariant, string> = {
+    A: `You're WRONG if you don't pick ${isMessi ? "Messi" : "Ronaldo"} 🐐\nMy vote just shifted the battle — prove me wrong 👉`,
+    B: "Messi vs Ronaldo is getting heated 🔥\nI just defended my GOAT. What about you?",
+  };
+  const VARIANT_CTA: Record<ShareVariant, string> = {
+    A: "⚔️ PUSH THE SCORE",
+    B: "🛡️ DEFEND YOUR ARMY",
+  };
+  const shareText = VARIANT_SHARE[variant];
+  const ctaLabel = VARIANT_CTA[variant];
+
+  function flashToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2400);
+  }
+
+  // Copy with graceful degradation: async Clipboard API → legacy execCommand.
+  // Returns false only if every method fails.
+  async function copyLink(payload: string): Promise<boolean> {
     try {
-      if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ title: "WHO IS GOAT?", text, url });
-      } else {
-        await navigator.clipboard.writeText(`${text} ${url}`);
-        setToast("Link copied — send it to someone who's WRONG 😈");
-        window.setTimeout(() => setToast(null), 2400);
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload);
+        return true;
       }
     } catch {
-      /* user dismissed the share sheet */
+      /* secure-context / permission failure → try legacy path */
     }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = payload;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function challenge() {
+    // Single source of truth for URL + copy — same variant for share AND fallback.
+    const url = buildShareUrl();
+    const text = shareText;
+    track("share_click", { variant }); // tag variant → measure A vs B
+
+    // 1. Native share sheet (mobile / iOS Safari)
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "WHO IS GOAT?", text, url });
+        flashToast("Shared successfully ✅");
+        return;
+      } catch (err) {
+        // User dismissed the sheet → intentional, not a failure. Stay quiet.
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // Any other error → fall through to the clipboard fallback below.
+      }
+    }
+
+    // 2. Clipboard fallback (desktop / no share support / share threw)
+    const copied = await copyLink(`${text} ${url}`);
+    flashToast(
+      copied
+        ? "Link copied — send it to someone who's WRONG 😈"
+        : `Couldn't copy — share this: ${url}`,
+    );
   }
 
   return (
@@ -49,15 +126,17 @@ export default function SuccessPage() {
         animate={{ opacity: 1, y: 0 }}
         className="relative z-10 text-sm font-bold uppercase tracking-[0.3em] text-muted"
       >
-        You joined
+        You are now
       </motion.p>
 
       <motion.h1
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 220, damping: 13 }}
-        className={`relative z-10 text-5xl font-black uppercase leading-none ${
-          isMessi ? "text-messi drop-shadow-[0_0_30px_rgba(79,168,224,0.7)]" : "text-ronaldo drop-shadow-[0_0_30px_rgba(229,52,61,0.7)]"
+        className={`relative z-10 text-6xl font-black uppercase leading-[0.9] tracking-tight sm:text-7xl ${
+          isMessi
+            ? "text-messi drop-shadow-[0_0_45px_rgba(79,168,224,0.95)]"
+            : "text-ronaldo drop-shadow-[0_0_45px_rgba(229,52,61,0.95)]"
         }`}
       >
         {FACTION_LABEL[side]}
@@ -69,9 +148,13 @@ export default function SuccessPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.25 }}
-        className="relative z-10 rounded-full border border-hairline bg-surface/70 px-5 py-2 text-lg font-black"
+        className={`relative z-10 rounded-2xl border bg-surface/80 px-6 py-3 text-2xl font-black tracking-tight ${
+          isMessi
+            ? "border-messi/60 text-messi shadow-glow-messi"
+            : "border-ronaldo/60 text-ronaldo shadow-glow-ronaldo"
+        }`}
       >
-        🎖️ Soldier #{rank ? formatNumber(rank) : "—"}
+        🎖️ SOLDIER #{rank ? formatNumber(rank) : "—"}
       </motion.div>
 
       {/* current global score */}
@@ -101,10 +184,9 @@ export default function SuccessPage() {
       <motion.p
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 1.4, repeat: Infinity }}
-        className={`relative z-10 text-sm font-black ${winning ? "text-win" : "text-lose"}`}
+        className={`relative z-10 text-base font-black ${winning ? "text-gold" : "text-lose"}`}
       >
-        ⚡ Your vote changed the battle — {FACTION_LABEL[side]} is {winning ? "WINNING" : "LOSING"} at{" "}
-        {myPct.toFixed(1)}%
+        ⚠️ {FACTION_LABEL[side]} {myPct.toFixed(1)}% — {urgencyLine}
       </motion.p>
 
       <motion.button
@@ -114,7 +196,7 @@ export default function SuccessPage() {
         transition={{ duration: 1.8, repeat: Infinity }}
         className="relative z-10 mt-2 w-full rounded-2xl bg-gradient-to-r from-gold to-gold-deep py-5 text-xl font-black uppercase tracking-wide text-ink"
       >
-        👉 Challenge a Friend
+        {ctaLabel}
       </motion.button>
 
       <button onClick={() => router.push("/vote")} className="relative z-10 text-xs text-muted">

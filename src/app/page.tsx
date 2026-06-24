@@ -1,12 +1,20 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
+import { captureRef, track } from "@/lib/attribution";
 
 export default function Landing() {
   const router = useRouter();
   const { messiPct, ronaldoPct } = useApp();
+
+  // first-touch: store inbound ?ref, then log the visit (with that ref attached)
+  useEffect(() => {
+    captureRef();
+    track("landing_view");
+  }, []);
 
   function enter() {
     router.push("/vote");

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
+import { track } from "@/lib/attribution";
 import { Side } from "@/lib/types";
 
 export default function VotePage() {
@@ -11,9 +12,16 @@ export default function VotePage() {
   const { castVote } = useApp();
   const [chosen, setChosen] = useState<Side | null>(null);
 
+  // reaching the duel screen = vote intent started (denominator for share rate)
+  useEffect(() => {
+    track("vote_started");
+  }, []);
+
   function pick(side: Side) {
     if (chosen) return;
     castVote(side);
+    // per-side event carries inbound ref → measures referred conversion
+    track(side === "messi" ? "vote_messi" : "vote_ronaldo", { side });
     setChosen(side);
     window.setTimeout(() => router.push("/success"), 850);
   }
