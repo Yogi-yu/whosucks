@@ -101,19 +101,6 @@ export function getMyRef(): string {
 }
 
 /**
- * Origin-aware share URL carrying MY referral code → attributes the next hop.
- * Client: uses the live origin (correct on any domain). SSR/fallback: the
- * production URL from NEXT_PUBLIC_SITE_URL (set in Vercel), so links are never
- * stamped with a localhost or placeholder host.
- */
-export function buildShareUrl(): string {
-  const fallback =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://goatbattle.app";
-  const origin = hasWindow() ? window.location.origin : fallback;
-  return `${origin}/?ref=${getMyRef()}`;
-}
-
-/**
  * Mark this device as a spreader exactly once (the moment its share link first
  * exists). This is the numerator of "invites per user" in the K-factor.
  */

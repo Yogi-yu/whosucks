@@ -5,9 +5,20 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Confetti from "@/components/Confetti";
 import { useApp } from "@/lib/AppContext";
-import { buildShareUrl, createReferral, getVariant, track, ShareVariant } from "@/lib/attribution";
+import { createReferral, getMyRef, getVariant, track, ShareVariant } from "@/lib/attribution";
 import { FACTION_LABEL } from "@/lib/mockData";
 import { formatNumber } from "@/lib/format";
+
+/**
+ * The ONE share-URL builder. Always origin + URLSearchParams, ref validated.
+ * Synchronous so it can run inside the click gesture (critical for iOS share).
+ * Guaranteed to return a well-formed absolute URL — never undefined/empty.
+ */
+function makeShareUrl(ref: string): string {
+  const url = new URL(window.location.origin);
+  if (ref && typeof ref === "string") url.searchParams.set("ref", ref);
+  return url.toString(); // e.g. https://yourdomain.com/?ref=abc123
+}
 
 export default function SuccessPage() {
   const router = useRouter();
@@ -90,30 +101,32 @@ export default function SuccessPage() {
   }
 
   async function challenge() {
-    // Single source of truth for URL + copy — same variant for share AND fallback.
-    const url = buildShareUrl();
+    // --- everything here is SYNCHRONOUS up to navigator.share() ---
+    // No awaits before the share call → preserves the iOS user-gesture context.
+    const url = makeShareUrl(getMyRef()); // single, always-valid URL
     const text = shareText;
-    track("share_click", { variant }); // tag variant → measure A vs B
+    console.log("[SHARE URL]", url); // TEMP debug — verify URL correctness
+    track("share_click", { variant }); // sync (localStorage + console) — gesture safe
 
-    // 1. Native share sheet (mobile / iOS Safari)
+    // 1. Native share — invoked directly inside the gesture (mobile / iOS Safari)
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: "WHO IS GOAT?", text, url });
         flashToast("Shared successfully ✅");
-        return;
+        return; // outcome: native share
       } catch (err) {
-        // User dismissed the sheet → intentional, not a failure. Stay quiet.
+        // User dismissed the sheet → intentional, a valid outcome. Stay quiet.
         if (err instanceof DOMException && err.name === "AbortError") return;
-        // Any other error → fall through to the clipboard fallback below.
+        // Any real failure → fall through to clipboard. No dead end.
       }
     }
 
-    // 2. Clipboard fallback (desktop / no share support / share threw)
+    // 2. Clipboard fallback: writeText → execCommand → raw link (copyLink chain)
     const copied = await copyLink(`${text} ${url}`);
     flashToast(
       copied
-        ? "Link copied — send it to someone who's WRONG 😈"
-        : `Couldn't copy — share this: ${url}`,
+        ? "Link copied — send it to someone who's WRONG 😈" // outcome: copied
+        : `Couldn't copy — share this: ${url}`, // outcome: raw link shown
     );
   }
 
