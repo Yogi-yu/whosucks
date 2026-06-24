@@ -4,7 +4,16 @@
       "Bash(npm install *)",
       "Bash(npm run *)",
       "Bash(lsof -ti:3001)",
-      "Bash(xargs kill)"
+      "Bash(xargs kill)",
+      "Bash(PORT=10000 npm start)",
+      "Bash(curl -s -o /dev/null http://localhost:10000/)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:10000/)",
+      "Bash(echo \"/ -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:10000/\\)\")",
+      "Bash(lsof -nP -iTCP:10000 -sTCP:LISTEN)",
+      "Bash(lsof -ti:10000)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/)",
+      "Bash(echo \"127.0.0.1:10000/ -> $\\(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/\\)\")"
     ]
   }
 }
