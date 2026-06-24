@@ -13,6 +13,15 @@ const config: Config = {
         gold: "#F5C542",
         "gold-deep": "#C9961E",
         "gold-glow": "#FFE08A",
+        // VS CORE identity — semantic energy poles (topic-agnostic).
+        // The system speaks side-blue / side-red; messi/ronaldo are subject aliases
+        // kept for backwards-compat. See docs/16-vs-identity-system.md.
+        "side-blue": "#3AA0FF",
+        "side-blue-light": "#7FD0FF",
+        "side-blue-deep": "#1146CF",
+        "side-red": "#FF4F44",
+        "side-red-light": "#FF9B8F",
+        "side-red-deep": "#C8121F",
         messi: "#4FA8E0",
         "messi-deep": "#2E7CC4",
         ronaldo: "#E5343D",

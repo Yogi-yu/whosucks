@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <!-- dark stadium atmosphere -->
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#1d2c47"/>
+      <stop offset="45%" stop-color="#0c1220"/>
+      <stop offset="100%" stop-color="#04060b"/>
+    </radialGradient>
+
+    <!-- energy fills -->
+    <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7fd0ff"/>
+      <stop offset="55%" stop-color="#3aa0ff"/>
+      <stop offset="100%" stop-color="#1146cf"/>
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff9b8f"/>
+      <stop offset="55%" stop-color="#ff4f44"/>
+      <stop offset="100%" stop-color="#c8121f"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3aa0ff"/>
+      <stop offset="50%" stop-color="#8a8f9c"/>
+      <stop offset="100%" stop-color="#ff4f44"/>
+    </linearGradient>
+
+    <radialGradient id="blueBlob" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#39a8ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#39a8ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="redBlob" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff4a3d" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ff4a3d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="seam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- neon glows: blur the colored source and stack it behind itself -->
+    <filter id="neonBlue" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="neonRed" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+    <filter id="seamGlow" x="-200%" y="-50%" width="500%" height="200%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1024" height="1024" rx="180" fill="url(#bg)"/>
+
+  <!-- stadium floodlight beams -->
+  <g opacity="0.07" fill="#cfe4ff">
+    <polygon points="300,-40 470,-40 360,1064 110,1064"/>
+    <polygon points="724,-40 554,-40 664,1064 914,1064"/>
+  </g>
+
+  <!-- clashing energy fields (blue left, red right) -->
+  <ellipse cx="372" cy="512" rx="340" ry="430" fill="url(#blueBlob)" filter="url(#soft)" opacity="0.85"/>
+  <ellipse cx="652" cy="512" rx="340" ry="430" fill="url(#redBlob)" filter="url(#soft)" opacity="0.85"/>
+
+  <!-- central clash seam -->
+  <path d="M512 120 L496 360 L524 392 L500 632 L520 664 L508 904"
+        stroke="url(#seam)" stroke-width="10" stroke-linecap="round"
+        fill="none" filter="url(#seamGlow)"/>
+
+  <!-- broadcast rings -->
+  <circle cx="512" cy="512" r="470" fill="none" stroke="url(#ring)" stroke-width="6" opacity="0.55"/>
+  <circle cx="512" cy="512" r="448" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.08"/>
+
+  <!-- live indicator -->
+  <g transform="translate(512 138)">
+    <circle r="9" fill="#ff4f44" filter="url(#neonRed)"/>
+  </g>
+
+  <!-- VS lockup: V = blue energy, S = red energy -->
+  <g font-family="'Arial Black','Arial',Helvetica,sans-serif" font-weight="900"
+     font-size="368" text-anchor="middle" letter-spacing="-8">
+    <!-- glow halo layer -->
+    <text x="396" y="632" transform="skewX(-7)" fill="url(#blueGrad)" filter="url(#neonBlue)">V</text>
+    <text x="636" y="632" transform="skewX(-7)" fill="url(#redGrad)" filter="url(#neonRed)">S</text>
+    <!-- crisp core layer on top for small-size legibility -->
+    <text x="396" y="632" transform="skewX(-7)" fill="url(#blueGrad)">V</text>
+    <text x="636" y="632" transform="skewX(-7)" fill="url(#redGrad)">S</text>
+  </g>
+</svg>
