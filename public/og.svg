@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="40%" r="80%">
+    <stop offset="0%" stop-color="#1d2c47"/><stop offset="48%" stop-color="#0b1120"/><stop offset="100%" stop-color="#04060b"/>
+  </radialGradient>
+  <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#7fd0ff"/><stop offset="55%" stop-color="#3aa0ff"/><stop offset="100%" stop-color="#1146cf"/></linearGradient>
+  <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#ff9b8f"/><stop offset="55%" stop-color="#ff4f44"/><stop offset="100%" stop-color="#c8121f"/></linearGradient>
+  <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#ffe08a"/><stop offset="100%" stop-color="#f5c542"/></linearGradient>
+  <radialGradient id="blueBlob" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#39a8ff" stop-opacity=".9"/><stop offset="100%" stop-color="#39a8ff" stop-opacity="0"/></radialGradient>
+  <radialGradient id="redBlob" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ff4a3d" stop-opacity=".9"/><stop offset="100%" stop-color="#ff4a3d" stop-opacity="0"/></radialGradient>
+  <linearGradient id="seam" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff" stop-opacity="0"/><stop offset="50%" stop-color="#fff" stop-opacity=".8"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <filter id="nB" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur in="SourceGraphic" stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="nR" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur in="SourceGraphic" stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="soft" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="70"/></filter>
+  <filter id="glow" x="-80%" y="-160%" width="260%" height="420%"><feGaussianBlur stdDeviation="6"/></filter>
+  <filter id="seamGlow" x="-300%" y="-30%" width="700%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+</defs>
+
+<rect width="1200" height="630" fill="url(#bg)"/>
+<g opacity="0.06" fill="#cfe4ff"><polygon points="360,-40 520,-40 430,680 150,680"/><polygon points="840,-40 680,-40 770,680 1050,680"/></g>
+
+<!-- energy split: blue field left, red field right -->
+<ellipse cx="290" cy="300" rx="370" ry="370" fill="url(#blueBlob)" filter="url(#soft)"/>
+<ellipse cx="910" cy="300" rx="370" ry="370" fill="url(#redBlob)" filter="url(#soft)"/>
+
+<!-- LIVE BATTLE status badge -->
+<g transform="translate(600 74)">
+  <rect x="-160" y="-31" width="320" height="60" rx="30" fill="#0c1120" stroke="#E5343D" stroke-width="2.5"/>
+  <circle cx="-118" cy="0" r="9" fill="#E5343D" filter="url(#glow)"/>
+  <text x="16" y="12" text-anchor="middle" font-family="'Arial Black','Arial',sans-serif" font-weight="900" font-size="30" letter-spacing="4" fill="#ff6470">LIVE BATTLE</text>
+</g>
+
+<!-- clash seam -->
+<path d="M600 150 L588 270 L612 300 L592 360 L600 430" stroke="url(#seam)" stroke-width="9" stroke-linecap="round" fill="none" filter="url(#seamGlow)"/>
+
+<!-- MESSI  vs  RONALDO  (neon VS center) -->
+<text x="300" y="318" text-anchor="middle" font-family="'Arial Black','Arial',sans-serif" font-weight="900" font-size="92" letter-spacing="-1" fill="url(#blueGrad)" filter="url(#nB)">MESSI</text>
+<text x="900" y="318" text-anchor="middle" font-family="'Arial Black','Arial',sans-serif" font-weight="900" font-size="80" letter-spacing="-1" fill="url(#redGrad)" filter="url(#nR)">RONALDO</text>
+<g font-family="'Arial Black','Arial',sans-serif" font-weight="900" font-size="158" text-anchor="middle" letter-spacing="-6">
+  <text x="556" y="338" transform="skewX(-7)" fill="url(#blueGrad)" filter="url(#nB)">V</text>
+  <text x="652" y="338" transform="skewX(-7)" fill="url(#redGrad)" filter="url(#nR)">S</text>
+  <text x="556" y="338" transform="skewX(-7)" fill="url(#blueGrad)">V</text>
+  <text x="652" y="338" transform="skewX(-7)" fill="url(#redGrad)">S</text>
+</g>
+
+<!-- WHO IS THE GOAT? tagline -->
+<text x="600" y="432" text-anchor="middle" font-family="'Arial Black','Arial',sans-serif" font-weight="900" font-size="44" letter-spacing="6" fill="url(#goldGrad)" filter="url(#glow)">WHO IS THE GOAT?</text>
+<text x="600" y="432" text-anchor="middle" font-family="'Arial Black','Arial',sans-serif" font-weight="900" font-size="44" letter-spacing="6" fill="url(#goldGrad)">WHO IS THE GOAT?</text>
+
+<!-- real-time score: 48% vs 52%, symmetric, closeness emphasis -->
+<text x="80" y="538" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="40" fill="#3aa0ff">48%</text>
+<text x="1120" y="538" text-anchor="end" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="40" fill="#ff4f44">52%</text>
+<text x="600" y="534" text-anchor="middle" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="23" letter-spacing="2" fill="#F5C542">⚡ TOO CLOSE TO CALL</text>
+<rect x="80" y="556" width="1040" height="22" rx="11" fill="#1F1F2C"/>
+<rect x="80" y="556" width="499.2" height="22" rx="11" fill="url(#blueGrad)"/>
+<rect x="579.2" y="556" width="540.8" height="22" rx="11" fill="url(#redGrad)"/>
+<rect x="576.7" y="549" width="5" height="36" rx="2.5" fill="#ffffff" filter="url(#glow)"/>
+<rect x="576.7" y="549" width="5" height="36" rx="2.5" fill="#ffffff"/>
+</svg>

@@ -5,10 +5,28 @@ import { AppProvider } from "@/lib/AppContext";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+const TITLE = "WHO IS GOAT? — Messi vs Ronaldo";
+const DESCRIPTION = "LIVE BATTLE: Messi vs Ronaldo. Pick a side — who is the GOAT?";
+
 export const metadata: Metadata = {
-  title: "WHO IS GOAT? — Messi vs Ronaldo",
-  description: "Pick a side. Messi or Ronaldo. Who is the GOAT?",
+  metadataBase: new URL("https://whosucks.org"),
+  title: TITLE,
+  description: DESCRIPTION,
   applicationName: "GOAT Battle",
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/",
+    siteName: "GOAT Battle",
+    type: "website",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Messi vs Ronaldo — LIVE BATTLE" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/og.png"],
+  },
 };
 
 export const viewport: Viewport = {
